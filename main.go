@@ -11,13 +11,13 @@ func cleanInput(text string) []string {
 	return strings.Fields(strings.ToLower(text))
 }
 
-func commandExit() error {
+func commandExit(*config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(*config) error {
 	multilineHelp := `
 Welcome to the Pokedex!
 Usage:
@@ -29,24 +29,30 @@ exit: Exit the Pokedex
 	return nil
 }
 
+type config struct {
+	commands map[string]cliCommand
+}
+
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(*config) error
 }
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
-	cliCommands := map[string]cliCommand{
-		"exit": {
-			name:        "exit",
-			description: "Exit the Pokedex",
-			callback:    commandExit,
-		},
-		"help": {
-			name:        "help",
-			description: "Displays a help message",
-			callback:    commandHelp,
+	cfg := config{
+		commands: map[string]cliCommand{
+			"exit": {
+				name:        "exit",
+				description: "Exit the Pokedex",
+				callback:    commandExit,
+			},
+			"help": {
+				name:        "help",
+				description: "Displays a help message",
+				callback:    commandHelp,
+			},
 		},
 	}
 	for {
@@ -54,19 +60,16 @@ func main() {
 		if scanner.Scan() {
 			text := scanner.Text()
 			textCleaned := cleanInput(text)
-			if textCleaned[0] == "" {
-				cliCommands["help"].callback()
+			if len(textCleaned) == 0 || textCleaned[0] == "" {
+				cfg.commands["help"].callback(&cfg)
 				continue
 			}
-			// if _, ok := cliCommands[textCleaned[0]]; !ok {
-			// 	cliCommands["help"].callback()
-			// }
-			command, ok := cliCommands[textCleaned[0]]
-			if !ok {
-				cliCommands["help"].callback()
-				continue
+
+			if command, ok := cfg.commands[textCleaned[0]]; !ok {
+				cfg.commands["help"].callback(&cfg)
+			} else {
+				command.callback(&cfg)
 			}
-			command.callback()
 		}
 	}
 }
